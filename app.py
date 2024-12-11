@@ -11,9 +11,9 @@ CORS(app)
 
 # path = "/home/chocomalt/kuliah/Machine Learning/faceCount_model/"
 path = os.path.join(os.path.abspath(__file__))
-model_path = os.path.join(path, 'saved_model/model_gender_final.h5')
-cascade_path = os.path.join(path, 'datasets/Input/haarcascade_frontalface_default.xml')
-save_path = os.path.join(path, 'static/processed')
+model_path = "/faceCount_model/saved_model/model_gender_final.h5"
+cascade_path = '/faceCount_model/datasets/Input/haarcascade_frontalface_default.xml'
+save_path = 'faceCount_model/static/processed'
 
 model = load_model(model_path)
 cascade = cv2.CascadeClassifier(cascade_path)
