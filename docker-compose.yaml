@@ -1,8 +1,9 @@
+version: '3'
 services:
   face_count:
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: DockerFile
     container_name: face_count
     ports:
       - "5000:5000"
