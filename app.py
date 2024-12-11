@@ -8,10 +8,15 @@ from matplotlib import pyplot as plt  # Required for plt.imshow (if needed for d
 
 app = Flask(__name__)
 CORS(app)
-path = "/home/chocomalt/kuliah/Machine Learning/faceCount_model/"
-model = load_model(os.path.join(path, 'saved_model/model_gender_final.h5'))
-cascade = cv2.CascadeClassifier(os.path.join(path, 'datasets/Input/haarcascade_frontalface_default.xml'))
+
+# path = "/home/chocomalt/kuliah/Machine Learning/faceCount_model/"
+path = os.path.join(os.path.abspath(__file__))
+model_path = os.path.join(path, 'saved_model/model_gender_final.h5')
+cascade_path = os.path.join(path, 'datasets/Input/haarcascade_frontalface_default.xml')
 save_path = os.path.join(path, 'static/processed')
+
+model = load_model(model_path)
+cascade = cv2.CascadeClassifier(cascade_path)
 
 # Labels for prediction
 LABELS = {0: "female", 1: "male"}
