@@ -1,0 +1,15 @@
+FROM python:3.12.7
+
+WORKDIR /faceCount_model
+
+COPY requirements.txt .
+
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY . .
+
+EXPOSE 5000
+
+ENV MODEL_PATH=/faceCount_model/saved_model
+
+CMD ["python", "app.py"]

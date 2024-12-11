@@ -1,0 +1,14 @@
+version: '3.9'
+
+services:
+  face_count:
+    build: 
+      context: .
+      dockerfile: Dockerfile
+    container_name: face_count
+    ports:
+      - "5000:5000"
+    volumes:
+      -./static/processed:/faceCount_model/static/processed
+    environment:
+      - MODEL_PATH=/faceCount_model/saved_model
