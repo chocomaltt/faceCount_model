@@ -9,6 +9,7 @@ services:
       - "5000:5000"
     volumes:
       - ./static/processed:/app/static/processed
+      - ./datasets/Input:/app/datasets/Input
     environment:
       - MODEL_PATH=/app/saved_model
       - FLASK_ENV="development"
