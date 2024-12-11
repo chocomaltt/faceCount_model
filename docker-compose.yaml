@@ -11,3 +11,4 @@ services:
       - ./static/processed:/faceCount_model/static/processed
     environment:
       - MODEL_PATH=/faceCount_model/saved_model
+      - FLASK_ENV="development"
