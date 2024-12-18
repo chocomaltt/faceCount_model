@@ -26,24 +26,23 @@ LABELS = {0: "female", 1: "male"}
 
 # Global session data
 current_session_images = []
+male_count = 0
+female_count = 0
 
 @app.route('/predict', methods=['POST'])
 def predict():
-    global current_session_images
+    global current_session_images, male_count, female_count
     
     # Clear previous session's images
     current_session_images.clear()
 
     files = request.files.getlist('images')
-    results = {"male": 0, "female": 0, "processed_images": []}
+    results = {"male": male_count, "female": female_count, "processed_images": []}
 
     for file in files:
         image = cv2.imdecode(np.frombuffer(file.read(), np.uint8), cv2.IMREAD_COLOR)
-        processed_image, male_count, female_count = process_and_label_faces(image)
+        processed_image = process_and_label_faces(image)
         
-        results["male"] += male_count
-        results["female"] += female_count
-
         unique_filename = f"{uuid.uuid4().hex}.jpg"
         full_save_path = os.path.join(save_path, unique_filename)
         cv2.imwrite(full_save_path, processed_image)
@@ -51,6 +50,9 @@ def predict():
         image_url = f"/static/processed/{unique_filename}"
         results["processed_images"].append(image_url)
         current_session_images.append(image_url)
+
+    results["male"] = male_count
+    results["female"] = female_count
 
     return jsonify(results)
 
@@ -62,15 +64,12 @@ def get_processed_images():
 def process_and_label_faces(image):
     """
     Detect faces using MTCNN or Haar Cascade, predict gender, and annotate the image.
-    Returns the processed image along with male and female counts.
+    Updates the global male and female counts directly.
     """
-    global cascade, mtcnn_detector, model, LABELS
+    global cascade, mtcnn_detector, model, LABELS, male_count, female_count
 
     rgb_image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
     mtcnn_faces = mtcnn_detector.detect_faces(rgb_image)
-    
-    male_count = 0
-    female_count = 0
 
     if mtcnn_faces:
         # Use MTCNN for face detection
@@ -119,7 +118,7 @@ def process_and_label_faces(image):
             else:
                 male_count += 1
 
-    return image, male_count, female_count
+    return image
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000)
