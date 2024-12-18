@@ -11,9 +11,9 @@ app = Flask(__name__)
 CORS(app)
 
 # Path configuration
-model_path = "faceCount_model/saved_model/model_gender_final.h5"
-cascade_path = "faceCount_model/datasets/Input/haarcascade_frontalface_default.xml"
-save_path = "faceCount_model/static/processed"
+model_path = "/app/saved_model/model_gender_final.h5"
+cascade_path = "/app/datasets/Input/haarcascade_frontalface_default.xml"
+save_path = "/app/static/processed"
 os.makedirs(save_path, exist_ok=True)
 
 # Load model and cascade classifier
