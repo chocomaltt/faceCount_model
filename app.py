@@ -77,9 +77,9 @@ def process_and_label_faces(image):
         for face in mtcnn_faces:
             x, y, w, h = face['box']
             face_crop = rgb_image[y:y+h, x:x+w]
-            face_crop = cv2.resize(face_crop, (256, 256))
+            face_crop = cv2.resize(face_crop, (150, 150))
             img_scaled = face_crop / 255.0
-            reshape = np.reshape(img_scaled, (1, 256, 256, 3))
+            reshape = np.reshape(img_scaled, (1, 150, 150, 3))
 
             result = model.predict(reshape)
             predicted_class = np.argmax(result, axis=1)[0]
@@ -101,9 +101,9 @@ def process_and_label_faces(image):
 
         for x, y, w, h in haar_faces:
             face_crop = image[y:y+h, x:x+w]
-            face_crop = cv2.resize(face_crop, (256, 256))
+            face_crop = cv2.resize(face_crop, (150, 150))
             img_scaled = face_crop / 255.0
-            reshape = np.reshape(img_scaled, (1, 256, 256, 3))
+            reshape = np.reshape(img_scaled, (1, 150, 150, 3))
 
             result = model.predict(reshape)
             predicted_class = np.argmax(result, axis=1)[0]
