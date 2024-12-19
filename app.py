@@ -9,11 +9,11 @@ from matplotlib import pyplot as plt  # Required for plt.imshow (if needed for d
 app = Flask(__name__)
 CORS(app)
 
-# path = "/home/chocomalt/kuliah/Machine Learning/faceCount_model/"
+# path = "/home/chocomalt/kuliah/Machine Learning/app/"
 path = os.path.join(os.path.abspath(__file__))
-model_path = "/faceCount_model/saved_model/model_gender_final.h5"
-cascade_path = '/faceCount_model/datasets/Input/haarcascade_frontalface_default.xml'
-save_path = 'faceCount_model/static/processed'
+model_path = "/app/saved_model/model_gender_final.h5"
+cascade_path = '/app/datasets/Input/haarcascade_frontalface_default.xml'
+save_path = '/app/static/processed'
 
 model = load_model(model_path)
 cascade = cv2.CascadeClassifier(cascade_path)
