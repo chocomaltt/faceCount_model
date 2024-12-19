@@ -96,9 +96,9 @@ def process_and_label_faces(image):
     for x, y, w, h in faces:
         # Extract face region
         face = image[y:y+h, x:x+w]
-        face = cv2.resize(face, (256, 256))
+        face = cv2.resize(face, (150, 150))
         img_scaled = face / 255.0
-        reshape = np.reshape(img_scaled, (1, 256, 256, 3))
+        reshape = np.reshape(img_scaled, (1, 150, 150, 3))
         
         # Predict gender
         result = model.predict(reshape)
