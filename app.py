@@ -1,31 +1,40 @@
-from flask import Flask, request, jsonify, send_from_directory
+from flask import Flask, request, jsonify
 from flask_cors import CORS
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 from tensorflow.keras.models import load_model
 import cv2
 import numpy as np
 import os
-from matplotlib import pyplot as plt  # Required for plt.imshow (if needed for debugging)
+import uuid  # Import the uuid library for generating unique filenames
 
 app = Flask(__name__)
 CORS(app)
 
-# path = "/home/chocomalt/kuliah/Machine Learning/app/"
+# Initialize rate limiter
+limiter = Limiter(
+    get_remote_address,
+    app=app,
+    default_limits=["100 per hour"]  # Default limit: 100 requests per hour per IP
+)
+
+# Define paths
 path = os.path.join(os.path.abspath(__file__))
 model_path = "/app/saved_model/model_gender_final.h5"
 cascade_path = '/app/datasets/Input/haarcascade_frontalface_default.xml'
 save_path = '/app/static/processed'
 
+# Load model and cascade
 model = load_model(model_path)
 cascade = cv2.CascadeClassifier(cascade_path)
 
 # Labels for prediction
 LABELS = {0: "female", 1: "male"}
 
-import uuid  # Import the uuid library for generating unique filenames
-
 current_session_images = []
 
 @app.route('/predict', methods=['POST'])
+@limiter.limit("10 per minute")  # Limit to 10 requests per minute per IP
 def predict():
     global current_session_images
     
@@ -57,6 +66,7 @@ def predict():
     return jsonify(results)
 
 @app.route('/processed-images', methods=['GET'])
+@limiter.limit("5 per minute")  # Limit to 5 requests per minute per IP
 def get_processed_images():
     global current_session_images
     return jsonify({"processed_images": current_session_images})
@@ -101,3 +111,4 @@ def process_and_label_faces(image):
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000)
+
