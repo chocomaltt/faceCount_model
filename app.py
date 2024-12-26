@@ -2,7 +2,7 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
-from tensorflow.keras.models import load_model
+from tensorflow.keras.models import load_model # type: ignore
 import cv2
 import numpy as np
 import os
