@@ -6,6 +6,9 @@ from pydantic import BaseModel
 import cv2
 import numpy as np
 import os
+os.environ["OPENCV_OPENCL_DEVICE"] = "disabled"
+
+cv2.ocl.setUseOpenCL(False)
 
 app = FastAPI()
 
