@@ -1,31 +1,27 @@
-from flask import Flask, request, jsonify
-from flask_cors import CORS
-from flask_limiter import Limiter
-from flask_limiter.util import get_remote_address
-from tensorflow.keras.models import load_model # type: ignore
+from fastapi import FastAPI, Request, UploadFile, File, HTTPException
+from fastapi.encoders import jsonable_encoder
+from ai_edge_litert.interpreter import Interpreter
+import base64
+from pydantic import BaseModel
 import cv2
 import numpy as np
 import os
-import uuid  # Import the uuid library for generating unique filenames
 
-app = Flask(__name__)
-CORS(app)
-
-# Initialize rate limiter
-limiter = Limiter(
-    get_remote_address,
-    app=app,
-    default_limits=["100 per hour"]  # Default limit: 100 requests per hour per IP
-)
+app = FastAPI()
 
 # Define paths
 path = os.path.join(os.path.abspath(__file__))
-model_path = "/app/saved_model/model_gender_final.h5"
-cascade_path = '/app/datasets/Input/haarcascade_frontalface_default.xml'
+model_path = "saved_model/model_gender_dynamic.tflite"
+cascade_path = 'datasets/Input/haarcascade_frontalface_default.xml'
 save_path = '/app/static/processed'
 
 # Load model and cascade
-model = load_model(model_path)
+interpreter = Interpreter(model_path=model_path)
+interpreter.allocate_tensors()
+
+in_idx = interpreter.get_input_details()[0]['index']
+out_idx = interpreter.get_output_details()[0]['index']
+
 cascade = cv2.CascadeClassifier(cascade_path)
 
 # Labels for prediction
@@ -33,43 +29,35 @@ LABELS = {0: "female", 1: "male"}
 
 current_session_images = []
 
-@app.route('/predict', methods=['POST'])
-@limiter.limit("10 per minute")  # Limit to 10 requests per minute per IP
-def predict():
-    global current_session_images
-    
-    # Clear previous session's images
-    current_session_images.clear()
-    
-    files = request.files.getlist('images')
+class PredictResponse(BaseModel):
+    male: int
+    female: int
+    image: str
+
+@app.post('/predict', response_model=PredictResponse)
+async def predict(files: UploadFile):
     results = {"male": 0, "female": 0, "processed_images": []}
 
-    save_directory = os.path.join(os.path.dirname(__file__), 'static', 'processed')
-    os.makedirs(save_directory, exist_ok=True)
+    data = await files.read()
+    image = cv2.imdecode(np.frombuffer(data, np.uint8), cv2.IMREAD_COLOR)
+    if image is None:
+        raise HTTPException(status_code=400, detail=f"{files.filename} is not valid")
+    processed_image, male_count, female_count = process_and_label_faces(image)
+    
+    results["male"] += male_count
+    results["female"] += female_count
+    
+    _, buffer = cv2. imencode('.jpg', processed_image)
+    img_base64 = base64.b64encode(buffer).decode('utf-8')
+    image_string = f"data:image/jpeg;base64,{img_base64}"
+    
+    predict_result = {"male": male_count, "female": female_count, "image": image_string}
+    return PredictResponse(**predict_result)
 
-    for file in files:
-        image = cv2.imdecode(np.frombuffer(file.read(), np.uint8), cv2.IMREAD_COLOR)
-        processed_image, male_count, female_count = process_and_label_faces(image)
-        
-        results["male"] += male_count
-        results["female"] += female_count
-        
-        unique_filename = f"{uuid.uuid4().hex}.jpg"
-        full_save_path = os.path.join(save_directory, unique_filename)
-        cv2.imwrite(full_save_path, processed_image)
-        
-        # Store only the current session's image URLs
-        image_url = f"/static/processed/{unique_filename}"
-        results["processed_images"].append(image_url)
-        current_session_images.append(image_url)
-
-    return jsonify(results)
-
-@app.route('/processed-images', methods=['GET'])
-@limiter.limit("5 per minute")  # Limit to 5 requests per minute per IP
+@app.get('/processed-images')
 def get_processed_images():
     global current_session_images
-    return jsonify({"processed_images": current_session_images})
+    return jsonable_encoder({"processed_images": current_session_images})
 
 def process_and_label_faces(image):
     """
@@ -80,35 +68,33 @@ def process_and_label_faces(image):
 
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
     faces = cascade.detectMultiScale(gray, 1.1, 7)  # Detect faces
-    male_count = 0
-    female_count = 0
+    male_count = female_count = 0
 
-    for x, y, w, h in faces:
+    for (x, y, w, h) in faces:
         # Extract face region
         face = image[y:y+h, x:x+w]
-        face = cv2.resize(face, (150, 150))
-        img_scaled = face / 255.0
-        reshape = np.reshape(img_scaled, (1, 150, 150, 3))
-        
-        # Predict gender
-        result = model.predict(reshape)
-        predicted_class = np.argmax(result, axis=1)[0]
+        face = cv2.cvtColor(face, cv2.COLOR_BGR2RGB)
+        face = cv2.resize(face, (150, 150)).astype(np.float32) / 255.0
+        face = np.reshape(face, (1, 150, 150, 3))
 
-        # Draw rectangle and add label
-        label = LABELS[predicted_class]
-        color = (0, 255, 0) if predicted_class == 1 else (255, 0, 0)  # Green for male, blue for female
+        interpreter.set_tensor(in_idx, face)
+        interpreter.invoke()
+        preds = interpreter.get_tensor(out_idx)
+        cls = int(np.argmax(preds[0]))
+
+        
+        label = LABELS[cls]
+        color = (0, 255, 0) if cls == 1 else (255, 0, 0)  # Green for male, blue for female
         cv2.rectangle(image, (x-10, y), (x+w, y+h), color, 4)
         cv2.rectangle(image, (x-10, y-50), (x+w, y), color, -1)
         cv2.putText(image, label, (x, y-10), cv2.FONT_HERSHEY_SIMPLEX, 2, (255, 255, 255), 2)
 
-        # Update counts
-        if predicted_class == 0:
-            female_count += 1
-        else:
-            male_count += 1
+        if cls == 0: female_count += 1
+        else: male_count += 1
 
     return image, male_count, female_count
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000)
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=5000)
 
